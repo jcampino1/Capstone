@@ -200,6 +200,7 @@ for i in range(1, 15):
                   valor_metro_astillado=2050, numero_troncos=lista_insumos[i - 1])
 
 for i in range(1, 15):
+    dias[i].indice = i
     dias[i].cortar()
 
 diferencia_total = 0
