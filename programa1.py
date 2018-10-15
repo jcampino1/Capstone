@@ -169,9 +169,13 @@ archivo2.close()
 # Por ahora no hay inventario
 inventario = None
 metro_astillado = 2050
+lista_insumos = []
+
+for i in range(0, 14):
+    lista_insumos.append(round(random.uniform(0,1)*80 + 21))
 
 for i in range(1, 15):
-    dias[i] = Dia(i, dicc_patrones=patrones, dicc_piezas=piezas, lista_inventario=inventario, valor_metro_astillado=2050, numero_troncos=round(random.uniform(0,1)*80 + 21))
+    dias[i] = Dia(i, dicc_patrones=patrones, dicc_piezas=piezas, lista_inventario=inventario, valor_metro_astillado=2050, numero_troncos=lista_insumos[i-1])
 
 for i in range(0, 14):
     dias[14-i].cortar()
@@ -179,7 +183,7 @@ for i in range(0, 14):
 for i in range(1, 15):
     for indice, cantidad in dias[i].piezas_vendidas.items():
         coeficientes = dias[i].dicc_piezas[indice].lista_coef
-        dias[i].dicc_precios[indice] = round(coeficientes[0]/coeficientes[1] - (1/coeficientes[1])*cantidad, 0)
+        dias[i].dicc_precios[indice] = max(round(coeficientes[0]/coeficientes[1] - (1/coeficientes[1])*cantidad, 0), round((coeficientes[0]/(2*coeficientes[1])),0))
     #for numero in range(1, 10):
     #    print(numero)
     #    dias[i].dicc_piezas_a_astillar[numero] = dias[i].piezas_producidas[numero] \
@@ -187,14 +191,36 @@ for i in range(1, 15):
     #                                             - dias[i].piezas_vendidas[numero \
     #                                                - dias[i].dicc_paod_por_pieza[numero]]
 
+dias_con_inventario = {}
+for indice, dia in dias.items():
+    dias_con_inventario[indice] = dia
+
+for i in range(1, 15):
+    dias[i] = Dia(14, dicc_patrones=patrones, dicc_piezas=piezas, lista_inventario=inventario,
+                  valor_metro_astillado=2050, numero_troncos=lista_insumos[i - 1])
+
+for i in range(1, 15):
+    dias[i].cortar()
+
+diferencia_total = 0
+for i in range(1, 15):
+    for indice, cantidad in dias[i].piezas_vendidas.items():
+        coeficientes = dias[i].dicc_piezas[indice].lista_coef
+        dias[i].dicc_precios[indice] = max(round(coeficientes[0]/coeficientes[1] - (1/coeficientes[1])*cantidad, 0), round((coeficientes[0]/(2*coeficientes[1])),0))
+
     print("Dia {}".format(i))
     print("Troncos a cortar ese dia: {0}".format(dias[i].numero_troncos))
-    print("Patrones cortados: " + str(dias[i].dicc_patrones_usados))
-    print("Piezas producidas: " + str(dias[i].piezas_producidas))
-    print("Piezas vendidas: " + str(dias[i].piezas_vendidas))
-    print("Piezas recibidas: " + str(dias[i].dicc_piezas_recibidas))
-    print("Precios: " + str(dias[i].dicc_precios))
-    print("Piezas a otros dias: " + str(dias[i].dicc_piezas_a_otros_dias))
-    print("Patrones a otros dias: " + str(dias[i].patrones_a_otros_dias))
+    print("Patrones cortados: " + str(dias_con_inventario[i].dicc_patrones_usados) + "  |  " + str(dias[i].dicc_patrones_usados))
+    print("Piezas producidas: " + str(dias_con_inventario[i].piezas_producidas) + "  |  " + str(dias[i].piezas_producidas))
+    print("Piezas vendidas: " + str(dias_con_inventario[i].piezas_vendidas) + "  |  " + str(dias[i].piezas_vendidas))
+    print("Piezas recibidas: " + str(dias_con_inventario[i].dicc_piezas_recibidas) + "  |  " + str(dias[i].dicc_piezas_recibidas))
+    print("Precios: " + str(dias_con_inventario[i].dicc_precios) + "  |  " + str(dias[i].dicc_precios))
+    print("Piezas a otros dias: " + str(dias_con_inventario[i].dicc_piezas_a_otros_dias) + "  |  " + str(dias[i].dicc_piezas_a_otros_dias))
+    print("Patrones a otros dias: " + str(dias_con_inventario[i].patrones_a_otros_dias) + "  |  " + str(dias[i].patrones_a_otros_dias))
+    print("Utilidad del dia: " + str(dias_con_inventario[i].utilidad_total) + "  |  " + str(dias[i].utilidad_total))
+    print("Diferencia de utilidad: " + str(dias_con_inventario[i].utilidad_total - dias[i].utilidad_total))
+    diferencia_total += (dias_con_inventario[i].utilidad_total - dias[i].utilidad_total)
     #print("Piezas a astillar: " + str(dias[i].dicc_piezas_a_astillar))
     print("\n\n")
+
+print("Diferencia total de utilidad: " + str(diferencia_total))
