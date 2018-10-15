@@ -66,13 +66,17 @@ class Dia:
         self.utilidad_total = 0
         self.dicc_patrones_usados = {}
         self.piezas_producidas = {}
-        #piezas_vendidas guarda todas las piezas de las que me voy a deshacer en un dia, puede ser por venta o por astillado.
+        # Piezas_vendidas guarda todas las piezas de las que me voy a deshacer en un dia, puede ser por venta o por astillado.
+        # Informacion estadistica
+
         self.piezas_vendidas = {}
         self.dias_por_delante = min(5, 14-indice)
-        # Se crea un dicc con los precios a los que se venderan las piezas ese dia
         self.dicc_precios = {}
-        self.piezas_a_otros_dias = 0
+        self.dicc_piezas_a_otros_dias = {}
+        self.dicc_piezas_a_astillar = {}
         self.patrones_a_otros_dias = 0
+        self.dicc_piezas_recibidas = {}
+        self.dicc_paod_por_pieza = {}
 
         for i in range (0, len(self.dicc_patrones.keys())):
             self.dicc_patrones_usados[i+1] = 0
@@ -81,6 +85,17 @@ class Dia:
             self.piezas_producidas[i+1] = 0
             self.piezas_vendidas[i + 1] = 0
             self.dicc_precios[i+1] = 0
+            self.dicc_piezas_recibidas[i+1] = 0
+            self.dicc_piezas_a_astillar[i+1] = 0
+            self.dicc_paod_por_pieza[i+1] = 0
+
+        if self.indice <= 8:
+            for i in range(self.indice + 1, self.indice + 7):
+                self.dicc_piezas_a_otros_dias[i] = 0
+
+        else:
+            for i in range(self.indice + 1, 15):
+                self.dicc_piezas_a_otros_dias[i] = 0
 
 
     def elegir_corte(self):
@@ -106,23 +121,28 @@ class Dia:
             #rint(dias_a_guardar, type(dias_a_guardar))
             #ime.sleep(10)
             self.costo_total += corte.costo
+            if dias_a_guardar != 0:
+                self.patrones_a_otros_dias += 1
+
             for pieza, cantidad in corte.dicc_piezas.items():
                 self.piezas_producidas[pieza.indice] += cantidad
                 dias[self.indice+dias_a_guardar].piezas_vendidas[pieza.indice] += cantidad
                 dias[self.indice+dias_a_guardar].utilidad_total += coef
                 if dias_a_guardar != 0:
-                    self.piezas_a_otros_dias += cantidad
-                    self.patrones_a_otros_dias += 1
-                #print('Stock de la pieza {0}: {1}'.format(pieza.indice, pieza.stock))
+                    self.dicc_piezas_a_otros_dias[self.indice+dias_a_guardar] += cantidad
+                    self.dicc_paod_por_pieza[pieza.indice] += cantidad
+                    dias[self.indice+dias_a_guardar].dicc_piezas_recibidas[pieza.indice] += cantidad
+
+              #print('Stock de la pieza {0}: {1}'.format(pieza.indice, pieza.stock))
 
             self.dicc_patrones_usados[corte.numero] += 1
             #print("El corte elegido es el {0}".format(corte.numero))
 
             num_troncos -= 1
             #time.sleep(0.5)
-        print(self.dicc_patrones_usados.values())
-        print(self.piezas_producidas.values())
-        print('Utilidad total: {0}, costo total: {1}'.format(self.utilidad_total, self.costo_total))
+        #print(self.dicc_patrones_usados.values())
+        #print(self.piezas_producidas.values())
+        #print('Utilidad total: {0}, costo total: {1}'.format(self.utilidad_total, self.costo_total))
 
 piezas = dict()
 # Diccionario de la forma indice: Pieza()
@@ -157,20 +177,24 @@ for i in range(0, 14):
     dias[14-i].cortar()
 
 for i in range(1, 15):
+    for indice, cantidad in dias[i].piezas_vendidas.items():
+        coeficientes = dias[i].dicc_piezas[indice].lista_coef
+        dias[i].dicc_precios[indice] = round(coeficientes[0]/coeficientes[1] - (1/coeficientes[1])*cantidad, 0)
+    #for numero in range(1, 10):
+    #    print(numero)
+    #    dias[i].dicc_piezas_a_astillar[numero] = dias[i].piezas_producidas[numero] \
+    #                                             + dias[i].dicc_piezas_recibidas[numero] \
+    #                                             - dias[i].piezas_vendidas[numero \
+    #                                                - dias[i].dicc_paod_por_pieza[numero]]
+
     print("Dia {}".format(i))
+    print("Troncos a cortar ese dia: {0}".format(dias[i].numero_troncos))
     print("Patrones cortados: " + str(dias[i].dicc_patrones_usados))
     print("Piezas producidas: " + str(dias[i].piezas_producidas))
     print("Piezas vendidas: " + str(dias[i].piezas_vendidas))
-    for indice, cantidad in dias[i].piezas_vendidas.items():
-        coeficientes = dias[i].dicc_piezas[indice].lista_coef
-        dias[i].dicc_precios[indice] = coeficientes[0]/coeficientes[1] - (1/coeficientes[1])*cantidad
-    print("Precios: " + str(dias[i].dicc_precios) + "\n\n")
-    patrones_a_otros_dias += dias[i].patrones_a_otros_dias
-    piezas_a_otros_dias += dias[i].piezas_a_otros_dias
-
-print(patrones_a_otros_dias)
-print(piezas_a_otros_dias)
-
-
-
-
+    print("Piezas recibidas: " + str(dias[i].dicc_piezas_recibidas))
+    print("Precios: " + str(dias[i].dicc_precios))
+    print("Piezas a otros dias: " + str(dias[i].dicc_piezas_a_otros_dias))
+    print("Patrones a otros dias: " + str(dias[i].patrones_a_otros_dias))
+    #print("Piezas a astillar: " + str(dias[i].dicc_piezas_a_astillar))
+    print("\n\n")
