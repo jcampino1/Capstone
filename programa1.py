@@ -3,6 +3,9 @@ import random
 
 # diccionario para guardar todos los dias. Es variable global para poder acceder en cualquier funcion
 dias = {}
+patrones_a_otros_dias = 0
+piezas_a_otros_dias = 0
+
 
 class Corte:
     def __init__(self, numero, costo, dicc_piezas, metros_sobrantes):
@@ -52,9 +55,10 @@ class Pieza:
 
 
 class Dia:
-    def __init__(self, indice, dicc_patrones, lista_inventario, valor_metro_astillado, numero_troncos):
+    def __init__(self, indice, dicc_patrones, dicc_piezas, lista_inventario, valor_metro_astillado, numero_troncos):
         self.indice = indice
         self.dicc_patrones = dicc_patrones
+        self.dicc_piezas = dicc_piezas
         self.lista_inventario = lista_inventario
         self.valor_metro_astillado = valor_metro_astillado
         self.numero_troncos = numero_troncos
@@ -65,15 +69,18 @@ class Dia:
         #piezas_vendidas guarda todas las piezas de las que me voy a deshacer en un dia, puede ser por venta o por astillado.
         self.piezas_vendidas = {}
         self.dias_por_delante = min(5, 14-indice)
+        # Se crea un dicc con los precios a los que se venderan las piezas ese dia
+        self.dicc_precios = {}
+        self.piezas_a_otros_dias = 0
+        self.patrones_a_otros_dias = 0
 
         for i in range (0, len(self.dicc_patrones.keys())):
             self.dicc_patrones_usados[i+1] = 0
 
-        for i in range(0, 10):
+        for i in range(0, 9):
             self.piezas_producidas[i+1] = 0
-
-        for i in range(0, 10):
-            self.piezas_vendidas[i+1] = 0
+            self.piezas_vendidas[i + 1] = 0
+            self.dicc_precios[i+1] = 0
 
 
     def elegir_corte(self):
@@ -81,7 +88,7 @@ class Dia:
         corte_max = None
         dias_a_gaurdar = 0
         for patron in self.dicc_patrones.values():
-            for dias_inventario in range (self.dias_por_delante + 1):
+            for dias_inventario in range(self.dias_por_delante + 1):
                 coef = patron.calcular_coef(self.valor_metro_astillado, dias_inventario, self.indice)
                 if coef >= maximo:
                     maximo = coef
@@ -96,11 +103,16 @@ class Dia:
         num_troncos = self.numero_troncos
         while num_troncos > 0:
             corte, coef, dias_a_guardar = self.elegir_corte()
+            #rint(dias_a_guardar, type(dias_a_guardar))
+            #ime.sleep(10)
             self.costo_total += corte.costo
             for pieza, cantidad in corte.dicc_piezas.items():
                 self.piezas_producidas[pieza.indice] += cantidad
                 dias[self.indice+dias_a_guardar].piezas_vendidas[pieza.indice] += cantidad
                 dias[self.indice+dias_a_guardar].utilidad_total += coef
+                if dias_a_guardar != 0:
+                    self.piezas_a_otros_dias += cantidad
+                    self.patrones_a_otros_dias += 1
                 #print('Stock de la pieza {0}: {1}'.format(pieza.indice, pieza.stock))
 
             self.dicc_patrones_usados[corte.numero] += 1
@@ -139,7 +151,7 @@ inventario = None
 metro_astillado = 2050
 
 for i in range(1, 15):
-    dias[i] = Dia(i, dicc_patrones=patrones, lista_inventario=inventario, valor_metro_astillado=2050, numero_troncos=round(random.uniform(0,1)*80 + 21))
+    dias[i] = Dia(i, dicc_patrones=patrones, dicc_piezas=piezas, lista_inventario=inventario, valor_metro_astillado=2050, numero_troncos=round(random.uniform(0,1)*80 + 21))
 
 for i in range(0, 14):
     dias[14-i].cortar()
@@ -149,3 +161,16 @@ for i in range(1, 15):
     print("Patrones cortados: " + str(dias[i].dicc_patrones_usados))
     print("Piezas producidas: " + str(dias[i].piezas_producidas))
     print("Piezas vendidas: " + str(dias[i].piezas_vendidas))
+    for indice, cantidad in dias[i].piezas_vendidas.items():
+        coeficientes = dias[i].dicc_piezas[indice].lista_coef
+        dias[i].dicc_precios[indice] = coeficientes[0]/coeficientes[1] - (1/coeficientes[1])*cantidad
+    print("Precios: " + str(dias[i].dicc_precios) + "\n\n")
+    patrones_a_otros_dias += dias[i].patrones_a_otros_dias
+    piezas_a_otros_dias += dias[i].piezas_a_otros_dias
+
+print(patrones_a_otros_dias)
+print(piezas_a_otros_dias)
+
+
+
+
