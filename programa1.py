@@ -1,11 +1,6 @@
 import time
 import random
 
-# diccionario para guardar todos los dias. Es variable global para poder acceder en cualquier funcion
-dias = {}
-patrones_a_otros_dias = 0
-piezas_a_otros_dias = 0
-
 
 class Corte:
     def __init__(self, numero, costo, dicc_piezas, metros_sobrantes):
@@ -28,15 +23,16 @@ class Corte:
 
 
 class Pieza:
-    def __init__(self, lista_coef, largo, qmax, indice, costo_inventario):
+    def __init__(self, lista_coef, largo, qmax, indice, costo_inventario, dias):
         self.indice = indice
         self.lista_coef = lista_coef
         self.largo = largo
         self.qmax = qmax
         self.costo_inventario = costo_inventario
+        self.dias = dias
 
     def calcular_coef(self, unidades_obtenidas, valor_astillado_largo, dias_inventario, indice_dia):
-        cantidad_inicial = dias[indice_dia + dias_inventario].piezas_vendidas[self.indice]
+        cantidad_inicial = self.dias[indice_dia + dias_inventario].piezas_vendidas[self.indice]
         cantidad_final = cantidad_inicial + unidades_obtenidas
         u1 = (self.lista_coef[0]/self.lista_coef[1])*cantidad_inicial - (1/self.lista_coef[1])*cantidad_inicial**2
         u2 = (self.lista_coef[0]/self.lista_coef[1])*cantidad_final - (1/self.lista_coef[1])*cantidad_final**2
@@ -55,7 +51,7 @@ class Pieza:
 
 
 class Dia:
-    def __init__(self, indice, dicc_patrones, dicc_piezas, lista_inventario, valor_metro_astillado, numero_troncos):
+    def __init__(self, indice, dicc_patrones, dicc_piezas, lista_inventario, valor_metro_astillado, numero_troncos, dias):
         self.indice = indice
         self.dicc_patrones = dicc_patrones
         self.dicc_piezas = dicc_piezas
@@ -77,6 +73,7 @@ class Dia:
         self.patrones_a_otros_dias = 0
         self.dicc_piezas_recibidas = {}
         self.dicc_paod_por_pieza = {}
+        self.dias = dias
 
         for i in range (0, len(self.dicc_patrones.keys())):
             self.dicc_patrones_usados[i+1] = 0
@@ -126,12 +123,12 @@ class Dia:
 
             for pieza, cantidad in corte.dicc_piezas.items():
                 self.piezas_producidas[pieza.indice] += cantidad
-                dias[self.indice+dias_a_guardar].piezas_vendidas[pieza.indice] += cantidad
-                dias[self.indice+dias_a_guardar].utilidad_total += coef
+                self.dias[self.indice+dias_a_guardar].piezas_vendidas[pieza.indice] += cantidad
+                self.dias[self.indice+dias_a_guardar].utilidad_total += coef
                 if dias_a_guardar != 0:
                     self.dicc_piezas_a_otros_dias[self.indice+dias_a_guardar] += cantidad
                     self.dicc_paod_por_pieza[pieza.indice] += cantidad
-                    dias[self.indice+dias_a_guardar].dicc_piezas_recibidas[pieza.indice] += cantidad
+                    self.dias[self.indice+dias_a_guardar].dicc_piezas_recibidas[pieza.indice] += cantidad
 
               #print('Stock de la pieza {0}: {1}'.format(pieza.indice, pieza.stock))
 
@@ -144,84 +141,98 @@ class Dia:
         #print(self.piezas_producidas.values())
         #print('Utilidad total: {0}, costo total: {1}'.format(self.utilidad_total, self.costo_total))
 
-piezas = dict()
-# Diccionario de la forma indice: Pieza()
-archivo1 = open('piezas.csv', 'r')
-for linea in archivo1:
-    linea = linea[:-2].split(',')
-    piezas[int(linea[0][6:])] = Pieza([float(linea[2]), float(linea[3])], int(linea[1]), 1000, int(linea[0][6:]), float(linea[4]))
-archivo1.close()
+class Simulacion:
+    def __init__(self):
+        self.piezas = dict()
+        self.patrones = dict()
+        self.dias = {}
 
+        archivo1 = open('piezas.csv', 'r')
+        for linea in archivo1:
+            linea = linea[:-2].split(',')
+            self.piezas[int(linea[0][6:])] = Pieza([float(linea[2]), float(linea[3])], int(linea[1]), 1000,
+                                              int(linea[0][6:]), float(linea[4]), self.dias)
+        archivo1.close()
 
-patrones = dict()
-# Diccionario de la forma numero: Corte()
-archivo2 = open('patrones.csv', 'r')
-for linea in archivo2:
-    linea = linea[:-1].split(',')
-    lista_piezas = linea[2:11]
-    diccionario_piezas = {}
-    for posicion in range(0, len(lista_piezas)):
-        if lista_piezas[posicion] != '0':
-            diccionario_piezas[piezas[posicion + 1]] = int(lista_piezas[posicion])
-    patrones[int(linea[0][1:])] = Corte(int(linea[0][1:]), int(linea[1]), diccionario_piezas, int(linea[11]))
-archivo2.close()
+        archivo2 = open('patrones.csv', 'r')
+        for linea in archivo2:
+            linea = linea[:-1].split(',')
+            lista_piezas = linea[2:11]
+            diccionario_piezas = {}
+            for posicion in range(0, len(lista_piezas)):
+                if lista_piezas[posicion] != '0':
+                    diccionario_piezas[self.piezas[posicion + 1]] = int(lista_piezas[posicion])
+            self.patrones[int(linea[0][1:])] = Corte(int(linea[0][1:]), int(linea[1]), diccionario_piezas, int(linea[11]))
+        archivo2.close()
 
-# Por ahora no hay inventario
-inventario = None
-metro_astillado = 2050
-lista_insumos = []
+    def correr(self):
+        lista_insumos = []
 
-for i in range(0, 14):
-    lista_insumos.append(round(random.uniform(0,1)*80 + 21))
+        for i in range(0, 14):
+            lista_insumos.append(round(random.uniform(0, 1) * 48))
 
-for i in range(1, 15):
-    dias[i] = Dia(i, dicc_patrones=patrones, dicc_piezas=piezas, lista_inventario=inventario, valor_metro_astillado=2050, numero_troncos=lista_insumos[i-1])
+        for i in range(1, 15):
+            self.dias[i] = Dia(i, dicc_patrones=self.patrones, dicc_piezas=self.piezas, lista_inventario=None,
+                          valor_metro_astillado=2050, numero_troncos=lista_insumos[i - 1], dias=self.dias)
 
-for i in range(0, 14):
-    dias[14-i].cortar()
+        for i in range(0, 14):
+            self.dias[14 - i].cortar()
 
-for i in range(1, 15):
-    for indice, cantidad in dias[i].piezas_vendidas.items():
-        coeficientes = dias[i].dicc_piezas[indice].lista_coef
-        dias[i].dicc_precios[indice] = max(round(coeficientes[0]/coeficientes[1] - (1/coeficientes[1])*cantidad, 0), round((coeficientes[0]/(2*coeficientes[1])),0))
-    #for numero in range(1, 10):
-    #    print(numero)
-    #    dias[i].dicc_piezas_a_astillar[numero] = dias[i].piezas_producidas[numero] \
-    #                                             + dias[i].dicc_piezas_recibidas[numero] \
-    #                                             - dias[i].piezas_vendidas[numero \
-    #                                                - dias[i].dicc_paod_por_pieza[numero]]
+        for i in range(1, 15):
+            for indice, cantidad in self.dias[i].piezas_vendidas.items():
+                coeficientes = self.dias[i].dicc_piezas[indice].lista_coef
+                self.dias[i].dicc_precios[indice] = max(
+                    round(coeficientes[0] / coeficientes[1] - (1 / coeficientes[1]) * cantidad, 0),
+                    round((coeficientes[0] / (2 * coeficientes[1])), 0))
 
-dias_con_inventario = {}
-for indice, dia in dias.items():
-    dias_con_inventario[indice] = dia
+        dias_con_inventario = {}
+        for indice, dia in self.dias.items():
+            dias_con_inventario[indice] = dia
 
-for i in range(1, 15):
-    dias[i] = Dia(14, dicc_patrones=patrones, dicc_piezas=piezas, lista_inventario=inventario,
-                  valor_metro_astillado=2050, numero_troncos=lista_insumos[i - 1])
+        for i in range(1, 15):
+            self.dias[i] = Dia(14, dicc_patrones=self.patrones, dicc_piezas=self.piezas, lista_inventario=None,
+                          valor_metro_astillado=2050, numero_troncos=lista_insumos[i - 1], dias=self.dias)
 
-for i in range(1, 15):
-    dias[i].indice = i
-    dias[i].cortar()
+        for i in range(1, 15):
+            self.dias[i].indice = i
+            self.dias[i].cortar()
 
-diferencia_total = 0
-for i in range(1, 15):
-    for indice, cantidad in dias[i].piezas_vendidas.items():
-        coeficientes = dias[i].dicc_piezas[indice].lista_coef
-        dias[i].dicc_precios[indice] = max(round(coeficientes[0]/coeficientes[1] - (1/coeficientes[1])*cantidad, 0), round((coeficientes[0]/(2*coeficientes[1])),0))
+        diferencia_total = 0
+        utilidad_total = 0
+        utilidad_total_sin = 0
+        for i in range(1, 15):
+            for indice, cantidad in self.dias[i].piezas_vendidas.items():
+                coeficientes = self.dias[i].dicc_piezas[indice].lista_coef
+                self.dias[i].dicc_precios[indice] = max(
+                    round(coeficientes[0] / coeficientes[1] - (1 / coeficientes[1]) * cantidad, 0),
+                    round((coeficientes[0] / (2 * coeficientes[1])), 0))
 
-    print("Dia {}".format(i))
-    print("Troncos a cortar ese dia: {0}".format(dias[i].numero_troncos))
-    print("Patrones cortados: " + str(dias_con_inventario[i].dicc_patrones_usados) + "  |  " + str(dias[i].dicc_patrones_usados))
-    print("Piezas producidas: " + str(dias_con_inventario[i].piezas_producidas) + "  |  " + str(dias[i].piezas_producidas))
-    print("Piezas vendidas: " + str(dias_con_inventario[i].piezas_vendidas) + "  |  " + str(dias[i].piezas_vendidas))
-    print("Piezas recibidas: " + str(dias_con_inventario[i].dicc_piezas_recibidas) + "  |  " + str(dias[i].dicc_piezas_recibidas))
-    print("Precios: " + str(dias_con_inventario[i].dicc_precios) + "  |  " + str(dias[i].dicc_precios))
-    print("Piezas a otros dias: " + str(dias_con_inventario[i].dicc_piezas_a_otros_dias) + "  |  " + str(dias[i].dicc_piezas_a_otros_dias))
-    print("Patrones a otros dias: " + str(dias_con_inventario[i].patrones_a_otros_dias) + "  |  " + str(dias[i].patrones_a_otros_dias))
-    print("Utilidad del dia: " + str(dias_con_inventario[i].utilidad_total) + "  |  " + str(dias[i].utilidad_total))
-    print("Diferencia de utilidad: " + str(dias_con_inventario[i].utilidad_total - dias[i].utilidad_total))
-    diferencia_total += (dias_con_inventario[i].utilidad_total - dias[i].utilidad_total)
-    #print("Piezas a astillar: " + str(dias[i].dicc_piezas_a_astillar))
-    print("\n\n")
+            print("Dia {}".format(i))
+            print("Troncos a cortar ese dia: {0}".format(self.dias[i].numero_troncos))
+            print("Patrones cortados: " + str(dias_con_inventario[i].dicc_patrones_usados) + "  |  " + str(
+                self.dias[i].dicc_patrones_usados))
+            print("Piezas producidas: " + str(dias_con_inventario[i].piezas_producidas) + "  |  " + str(
+                self.dias[i].piezas_producidas))
+            print(
+            "Piezas vendidas: " + str(dias_con_inventario[i].piezas_vendidas) + "  |  " + str(self.dias[i].piezas_vendidas))
+            print("Piezas recibidas: " + str(dias_con_inventario[i].dicc_piezas_recibidas) + "  |  " + str(
+                self.dias[i].dicc_piezas_recibidas))
+            print("Precios: " + str(dias_con_inventario[i].dicc_precios) + "  |  " + str(self.dias[i].dicc_precios))
+            print("Piezas a otros dias: " + str(dias_con_inventario[i].dicc_piezas_a_otros_dias) + "  |  " + str(
+                self.dias[i].dicc_piezas_a_otros_dias))
+            print("Patrones a otros dias: " + str(dias_con_inventario[i].patrones_a_otros_dias) + "  |  " + str(
+                self.dias[i].patrones_a_otros_dias))
+            print(
+            "Utilidad del dia: " + str(dias_con_inventario[i].utilidad_total) + "  |  " + str(self.dias[i].utilidad_total))
+            print("Diferencia de utilidad: " + str(dias_con_inventario[i].utilidad_total - self.dias[i].utilidad_total))
+            utilidad_total += dias_con_inventario[i].utilidad_total
+            diferencia_total += (dias_con_inventario[i].utilidad_total - self.dias[i].utilidad_total)
+            # print("Piezas a astillar: " + str(dias[i].dicc_piezas_a_astillar))
+            print("\n\n")
 
-print("Diferencia total de utilidad: " + str(diferencia_total))
+        print("Diferencia total de utilidad: " + str(diferencia_total))
+        print(round(utilidad_total, 0))
+        print("Porcentaje de aumento: " + str((diferencia_total*100)/utilidad_total))
+
+simulacion = Simulacion()
+simulacion.correr()
