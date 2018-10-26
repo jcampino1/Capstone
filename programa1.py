@@ -1,5 +1,6 @@
 import time
 import random
+import csv
 
 
 class Corte:
@@ -142,10 +143,11 @@ class Dia:
         #print('Utilidad total: {0}, costo total: {1}'.format(self.utilidad_total, self.costo_total))
 
 class Simulacion:
-    def __init__(self):
+    def __init__(self, escribir=False):
         self.piezas = dict()
         self.patrones = dict()
         self.dias = {}
+        self.escribir = escribir
 
 
         archivo1 = open('piezas.csv', 'r')
@@ -210,12 +212,26 @@ class Simulacion:
         diferencia_total = 0
         utilidad_total = 0
         utilidad_total_sin = 0
+
+        if self.escribir:
+            archivo_escrito = open('resultados.csv', 'w')
+
         for i in range(1, 15):
             for indice, cantidad in self.dias[i].piezas_vendidas.items():
                 coeficientes = self.dias[i].dicc_piezas[indice].lista_coef
                 self.dias[i].dicc_precios[indice] = max(
                     round(coeficientes[0] / coeficientes[1] - (1 / coeficientes[1]) * cantidad, 0),
                     round((coeficientes[0] / (2 * coeficientes[1])), 0))
+
+            if self.escribir:
+                archivo_escrito.write("Dia " + str(i) + "," + "Troncos recibidos: " + str(lista_insumos[i-1]) + "\n")
+                writer = csv.DictWriter(archivo_escrito, fieldnames=dias_con_inventario[i].piezas_producidas.keys())
+                writer.writeheader()
+                writer.writerow(dias_con_inventario[i].piezas_producidas)
+                writer.writerow(dias_con_inventario[i].piezas_vendidas)
+                writer.writerow(dias_con_inventario[i].dicc_piezas_recibidas)
+                writer.writerow(dias_con_inventario[i].dicc_precios)
+                archivo_escrito.write("\n\n")
 
             print("Dia {}".format(i))
             print("Troncos a cortar ese dia: {0}".format(self.dias[i].numero_troncos))
@@ -244,5 +260,30 @@ class Simulacion:
         print(round(utilidad_total, 0))
         print("Porcentaje de aumento: " + str((diferencia_total*100)/utilidad_total))
 
-simulacion = Simulacion()
-simulacion.correr()
+        if self.escribir:
+            archivo_escrito.write("\n\n")
+            archivo_escrito.write("Patrones usados cada dia")
+            writer = csv.DictWriter(archivo_escrito, fieldnames=dias_con_inventario[2].dicc_patrones_usados.keys())
+            writer.writeheader()
+            for i in range(1, 15):
+                writer.writerow(dias_con_inventario[i].dicc_patrones_usados)
+            archivo_escrito.close()
+
+        return (diferencia_total*100)/utilidad_total
+
+
+lista_porcentajes_aumento = []
+for i in range(0, 10):
+    if i == 0:
+        simulacion = Simulacion(escribir=True)
+    else:
+        simulacion = Simulacion()
+    aumento = simulacion.correr()
+    lista_porcentajes_aumento.append(aumento)
+
+print("\n\n")
+print(lista_porcentajes_aumento)
+print("\n\n")
+promedio = sum(lista_porcentajes_aumento)/10
+print("Promedio: " + str(round(promedio, 2)))
+
