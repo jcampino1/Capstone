@@ -66,7 +66,7 @@ class Dia:
         # Informacion estadistica
 
         self.piezas_vendidas = {}
-        self.dias_por_delante = min(5, 14-indice)
+        self.dias_por_delante = min(5, 15-indice)
         self.dicc_precios = {}
         self.dicc_piezas_a_otros_dias = {}
         self.dicc_piezas_a_astillar = {}
@@ -86,12 +86,12 @@ class Dia:
             self.dicc_piezas_a_astillar[i+1] = 0
             self.dicc_paod_por_pieza[i+1] = 0
 
-        if self.indice <= 8:
+        if self.indice <= 9:
             for i in range(self.indice + 1, self.indice + 7):
                 self.dicc_piezas_a_otros_dias[i] = 0
 
         else:
-            for i in range(self.indice + 1, 15):
+            for i in range(self.indice + 1, 16):
                 self.dicc_piezas_a_otros_dias[i] = 0
 
 
@@ -147,6 +147,7 @@ class Simulacion:
         self.patrones = dict()
         self.dias = {}
 
+
         archivo1 = open('piezas.csv', 'r')
         for linea in archivo1:
             linea = linea[:-2].split(',')
@@ -170,13 +171,22 @@ class Simulacion:
 
         for i in range(0, 14):
             lista_insumos.append(round(random.uniform(0, 1) * 48))
+        sum = 0
+        contador = 0
+        for i in range (10000):
+            sum += round(random.uniform(0, 1) * 48)
+            contador += 1
+        promedio = round(sum/contador)
 
         for i in range(1, 15):
             self.dias[i] = Dia(i, dicc_patrones=self.patrones, dicc_piezas=self.piezas, lista_inventario=None,
                           valor_metro_astillado=2050, numero_troncos=lista_insumos[i - 1], dias=self.dias)
 
-        for i in range(0, 14):
-            self.dias[14 - i].cortar()
+        self.dias[15] = Dia(15, dicc_patrones=self.patrones, dicc_piezas=self.piezas, lista_inventario=None,
+                            valor_metro_astillado=2050, numero_troncos=promedio, dias=self.dias)
+
+        for i in range(0, 15):
+            self.dias[15 - i].cortar()
 
         for i in range(1, 15):
             for indice, cantidad in self.dias[i].piezas_vendidas.items():
@@ -190,7 +200,7 @@ class Simulacion:
             dias_con_inventario[indice] = dia
 
         for i in range(1, 15):
-            self.dias[i] = Dia(14, dicc_patrones=self.patrones, dicc_piezas=self.piezas, lista_inventario=None,
+            self.dias[i] = Dia(15, dicc_patrones=self.patrones, dicc_piezas=self.piezas, lista_inventario=None,
                           valor_metro_astillado=2050, numero_troncos=lista_insumos[i - 1], dias=self.dias)
 
         for i in range(1, 15):
