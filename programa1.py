@@ -13,13 +13,17 @@ class Corte:
 
     def calcular_coef(self, valor_metro_astillado, dias_inventario, indice_dia):
         utilidad_corte = 0
+        uso_piezas = []
         for pieza, cantidad in self.dicc_piezas.items():
-            utilidad_corte += pieza.calcular_coef(cantidad, valor_metro_astillado, dias_inventario, indice_dia)
+            for i in range (cantidad):
+                utilidad_pieza, dia_consumo = pieza.calcular_coef(valor_metro_astillado, dias_inventario, indice_dia)
+                utilidad_corte += utilidad_pieza
+                uso_piezas.append((pieza, dia_consumo))
             #if self.numero == 1:
                 #print('Patron de corte {0}, agregando {1} de la pieza {2}. Utilidad:{3}'.format(self.numero, cantidad, pieza.indice, utilidad_corte))
                 #time.sleep(2)
 
-        return self.metros_sobrantes*valor_metro_astillado - self.costo + utilidad_corte
+        return self.metros_sobrantes*valor_metro_astillado - self.costo + utilidad_corte, uso_piezas
 
 
 
@@ -32,12 +36,26 @@ class Pieza:
         self.costo_inventario = costo_inventario
         self.dias = dias
 
-    def calcular_coef(self, unidades_obtenidas, valor_astillado_largo, dias_inventario, indice_dia):
-        cantidad_inicial = self.dias[indice_dia + dias_inventario].piezas_vendidas[self.indice]
-        cantidad_final = cantidad_inicial + unidades_obtenidas
-        u1 = (self.lista_coef[0]/self.lista_coef[1])*cantidad_inicial - (1/self.lista_coef[1])*cantidad_inicial**2
-        u2 = (self.lista_coef[0]/self.lista_coef[1])*cantidad_final - (1/self.lista_coef[1])*cantidad_final**2
+    def calcular_coef(self, valor_astillado_largo, dias_inventario, indice_dia):
+        mejor_coeficiente = -100000
+        dia_consumo = -1
 
+        for i in range(dias_inventario + 1):
+
+            cantidad_inicial = self.dias[indice_dia + i].piezas_vendidas[self.indice]
+            cantidad_final = cantidad_inicial + 1
+            u1 = (self.lista_coef[0]/self.lista_coef[1])*cantidad_inicial - (1/self.lista_coef[1])*cantidad_inicial**2
+            u2 = (self.lista_coef[0]/self.lista_coef[1])*cantidad_final - (1/self.lista_coef[1])*cantidad_final**2
+            if (u2 - u1 - 1 * self.costo_inventario * i >
+                            self.largo * valor_astillado_largo - 1 * self.costo_inventario * i):
+                if u2 - u1 - 1 * self.costo_inventario * i > mejor_coeficiente:
+                    mejor_coeficiente = u2 - u1 - 1 * self.costo_inventario * i
+                    dia_consumo = indice_dia + i
+
+            else:
+                if self.largo * valor_astillado_largo - 1 * self.costo_inventario * i > mejor_coeficiente:
+                    mejor_coeficiente = self.largo * valor_astillado_largo - 1 * self.costo_inventario * i
+                    dia_consumo = -1
         # No se si esta bien poner esto, el maximo entre u2 y 0
         # u2 = max(u2, 0)
 
@@ -46,10 +64,10 @@ class Pieza:
         #    time.sleep(5)
 
         # Hay que darle vueltas a esto tambien
-        return max(u2-u1-unidades_obtenidas*self.costo_inventario*dias_inventario,
-                   self.largo*valor_astillado_largo-unidades_obtenidas*self.costo_inventario*dias_inventario)
+        # return max(u2-u1-unidades_obtenidas*self.costo_inventario*dias_inventario,
+                   # self.largo*valor_astillado_largo-unidades_obtenidas*self.costo_inventario*dias_inventario)
 
-
+        return mejor_coeficiente, dia_consumo
 
 class Dia:
     def __init__(self, indice, dicc_patrones, dicc_piezas, lista_inventario, valor_metro_astillado, numero_troncos, dias):
@@ -99,37 +117,40 @@ class Dia:
     def elegir_corte(self):
         maximo = -10000000
         corte_max = None
-        dias_a_gaurdar = 0
+        uso_piezas = None
         for patron in self.dicc_patrones.values():
-            for dias_inventario in range(self.dias_por_delante + 1):
-                coef = patron.calcular_coef(self.valor_metro_astillado, dias_inventario, self.indice)
-                if coef >= maximo:
-                    maximo = coef
-                    corte_max = patron
-                    dias_a_gaurdar = dias_inventario
+            coef, uso = patron.calcular_coef(self.valor_metro_astillado, self.dias_por_delante, self.indice)
+            if coef >= maximo:
+                maximo = coef
+                corte_max = patron
+                uso_piezas = uso
+
         #time.sleep(10)
-        return corte_max, maximo, dias_a_gaurdar
+        return corte_max, maximo, uso_piezas
 
     def cortar(self):
         # Para cada tronco elige el mejor corte, considerando que corte hacer y 'para que dia' hacerlo.
         # Agrega las piezas del corte a las piezas producidas del dia, y a las piezas vendidas del dia elegido
         num_troncos = self.numero_troncos
         while num_troncos > 0:
-            corte, coef, dias_a_guardar = self.elegir_corte()
+            corte, coef, uso_piezas = self.elegir_corte()
             #rint(dias_a_guardar, type(dias_a_guardar))
             #ime.sleep(10)
             self.costo_total += corte.costo
-            if dias_a_guardar != 0:
-                self.patrones_a_otros_dias += 1
+            #if dias_a_guardar != 0:
+                #self.patrones_a_otros_dias += 1
 
-            for pieza, cantidad in corte.dicc_piezas.items():
-                self.piezas_producidas[pieza.indice] += cantidad
-                self.dias[self.indice+dias_a_guardar].piezas_vendidas[pieza.indice] += cantidad
-                self.dias[self.indice+dias_a_guardar].utilidad_total += coef
-                if dias_a_guardar != 0:
-                    self.dicc_piezas_a_otros_dias[self.indice+dias_a_guardar] += cantidad
-                    self.dicc_paod_por_pieza[pieza.indice] += cantidad
-                    self.dias[self.indice+dias_a_guardar].dicc_piezas_recibidas[pieza.indice] += cantidad
+            for pieza, dia in uso_piezas:
+                self.piezas_producidas[pieza.indice] += 1
+                if dia == -1:
+                    self.dias[self.indice].dicc_piezas_a_astillar[pieza.indice] += 1
+                else:
+                    self.dias[dia].piezas_vendidas[pieza.indice] += 1
+                    self.dias[self.indice].utilidad_total += coef
+                if dia > self.indice:
+                    self.dicc_piezas_a_otros_dias[dia] += 1
+                    self.dicc_paod_por_pieza[pieza.indice] += 1
+                    self.dias[dia].dicc_piezas_recibidas[pieza.indice] += 1
 
               #print('Stock de la pieza {0}: {1}'.format(pieza.indice, pieza.stock))
 
@@ -273,6 +294,7 @@ class Simulacion:
 
 
 lista_porcentajes_aumento = []
+tiempo1 = time.time()
 for i in range(0, 10):
     if i == 0:
         simulacion = Simulacion(escribir=True)
@@ -281,9 +303,11 @@ for i in range(0, 10):
     aumento = simulacion.correr()
     lista_porcentajes_aumento.append(aumento)
 
+tiempo2 = time.time()
 print("\n\n")
 print(lista_porcentajes_aumento)
 print("\n\n")
 promedio = sum(lista_porcentajes_aumento)/10
 print("Promedio: " + str(round(promedio, 2)))
+print("Tiempo: " + str(tiempo2 - tiempo1))
 
