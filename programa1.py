@@ -251,6 +251,7 @@ class Simulacion:
                 writer.writerow(dias_con_inventario[i].piezas_producidas)
                 writer.writerow(dias_con_inventario[i].piezas_vendidas)
                 writer.writerow(dias_con_inventario[i].dicc_piezas_recibidas)
+                writer.writerow(dias_con_inventario[i].dicc_piezas_a_astillar)
                 writer.writerow(dias_con_inventario[i].dicc_precios)
                 archivo_escrito.write("\n\n")
 
@@ -283,7 +284,7 @@ class Simulacion:
 
         if self.escribir:
             archivo_escrito.write("\n\n")
-            archivo_escrito.write("Patrones usados cada dia")
+            #archivo_escrito.write("Patrones usados cada dia")
             writer = csv.DictWriter(archivo_escrito, fieldnames=dias_con_inventario[2].dicc_patrones_usados.keys())
             writer.writeheader()
             for i in range(1, 15):
