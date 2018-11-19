@@ -7,8 +7,7 @@ que lógicamente tienen la información de estas variables y pueden ser modifica
 quien corra el programa.
 
 - El programa tiene especificada la distribución de llegada de troncos en las líneas 196 y 200
-respectivamente, en caso de querer ser modificadas, además del costo de astillado en la línea 
-256. 
+respectivamente, en caso de querer ser modificadas, además del costo de astillado en la línea 256. 
 
 Output:
 
